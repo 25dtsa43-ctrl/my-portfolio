@@ -1,8 +1,8 @@
 require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
+const path = require("path");
 
 const app = express();
 
@@ -10,64 +10,55 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ TiDB Connection (Fixed)
+// ✅ Serve frontend (VERY IMPORTANT)
+app.use(express.static(path.join(__dirname, "../client")));
+
+// ✅ Database connection (TiDB)
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT), // important
+  port: process.env.DB_PORT,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   ssl: {
     minVersion: "TLSv1.2",
-    rejectUnauthorized: true
+    rejectUnauthorized: true,
   },
-  connectTimeout: 10000
 });
 
-// ✅ Connect DB
+// Connect DB
 db.connect((err) => {
   if (err) {
-    console.log("❌ DB ERROR:");
-    console.log(err.code, err.message);
+    console.log("❌ DB Error:", err);
   } else {
     console.log("✅ Connected to TiDB 🚀");
   }
 });
 
-// ✅ Test Route
-const path = require("path");
+// ✅ API route
+app.post("/contact", (req, res) => {
+  const { name, email, message } = req.body;
 
-// Serve frontend files
-app.use(express.static(path.join(__dirname, "../client")));
+  db.query(
+    "INSERT INTO messages (name,email,message) VALUES (?,?,?)",
+    [name, email, message],
+    (err) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).send("Error saving");
+      }
+      res.send("Saved successfully");
+    }
+  );
+});
 
-// Open index.html on root
+// ✅ Show homepage
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
-// ✅ Contact API
-app.post("/contact", (req, res) => {
-  const { name, email, message } = req.body;
-
-  if (!name || !email) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const sql = "INSERT INTO messages (name, email, message) VALUES (?, ?, ?)";
-
-  db.query(sql, [name, email, message], (err, result) => {
-    if (err) {
-      console.log("❌ Insert Error:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    res.json({ success: true, message: "Saved successfully 🚀" });
-  });
-});
-
-// ✅ Start Server
+// ✅ IMPORTANT for Render
 const PORT = process.env.PORT || 4000;
-
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("🚀 Server running on port " + PORT);
 });
