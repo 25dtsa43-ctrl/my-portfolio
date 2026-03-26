@@ -35,8 +35,14 @@ db.connect((err) => {
 });
 
 // ✅ Test Route
+const path = require("path");
+
+// Serve frontend files
+app.use(express.static(path.join(__dirname, "../client")));
+
+// Open index.html on root
 app.get("/", (req, res) => {
-  res.send("Server is running 🚀");
+  res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
 // ✅ Contact API
